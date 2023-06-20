@@ -4,7 +4,7 @@
 这是一个关于COVID-19疫情的数据大盘，主要展示了从2019年到2022年底的全球感染数据。
 
 ## 效果演示
-<iframe src="//player.bilibili.com/player.html?aid=869281764&bvid=BV1RV4y1m72f&cid=1149688063&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+[https://www.bilibili.com/video/BV1RV4y1m72f/](https://www.bilibili.com/video/BV1RV4y1m72f/)
 
 ## 如何运行？
 ### 初始化数据

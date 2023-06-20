@@ -4,7 +4,7 @@
 This is a data dashboard about the COVID-19 pandemic, primarily showcasing global infection data from 2019 to the end of 2022.
 
 ## Demonstration
-<iframe src="//player.bilibili.com/player.html?aid=869281764&bvid=BV1RV4y1m72f&cid=1149688063&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+[https://www.bilibili.com/video/BV1RV4y1m72f/](https://www.bilibili.com/video/BV1RV4y1m72f/)
 
 ## How to start？
 ### Initialize data
