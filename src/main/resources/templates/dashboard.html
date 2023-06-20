@@ -1,0 +1,578 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${head}"></title>
+    <style scoped>
+        .main {
+            float: left;
+            width: 100%;
+            height: 1060px;
+            background: url([[${border}]]) -30px;
+        }
+
+        .body_style {
+            background: url(/imgs/bg.png) repeat
+        }
+
+        .title {
+            line-height: 64px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: 400;
+            color: #fff;
+        }
+
+        .container_left {
+            float: left;
+            width: 390px;
+            height: 860px;
+            margin-left: 27px;
+        }
+
+        .container_center {
+            float: left;
+            width: 1054px;
+            height: 860px;
+            margin-top: 20px;
+            margin-left: 12px;
+        }
+
+        .container_right {
+            float: left;
+            width: 390px;
+            height: 860px;
+            margin-left: 10px;
+        }
+
+        .container_data_top10 {
+            float: left;
+            width: 390px;
+            height: 535px;
+            overflow: hidden;
+        }
+
+        .container_left_unit {
+            float: left;
+            width: 390px;
+            height: 62px;
+            font-size: 32px;
+            font-family: Arial Rounded MT Bold;
+            line-height: 69px;
+            text-indent: 145px;
+            margin-top: 11px;
+        }
+
+        .container_left_date {
+            float: left;
+            width: 390px;
+            height: 105px;
+            margin-top: 12px;
+            text-indent: 60px;
+            font-size: 48px;
+            font-family: Arial Rounded MT Bold;
+            line-height: 135px;
+            color: #ffffffbd;
+        }
+
+        .container_center_world_map {
+            float: left;
+            width: 1054px;
+            height: 550px;
+        }
+
+        .container_center_line_chart {
+            float: left;
+            margin-top: 7px;
+            width: 1054px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body class="body_style">
+
+<div class="main">
+    <div class="title" th:text="${title}"></div>
+    <div class="container_left">
+        <div id="top_infect_chart" class="container_data_top10">
+
+        </div>
+        <div class="container_left_unit">
+            <span style="color:#ffc957" id="world_cases">0</span>
+        </div>
+        <div class="container_left_unit">
+            <span style="color:#ff6b5d" id="world_deaths">0</span>
+        </div>
+        <div class="container_left_unit">
+
+        </div>
+        <div id="logic_date" class="container_left_date">
+
+        </div>
+    </div>
+    <div class="container_center">
+        <div id="world_map_chart" class="container_center_world_map">
+
+        </div>
+        <div id="line_chart" class="container_center_line_chart">
+
+        </div>
+    </div>
+    <div class="container_right">
+        <div id="top_death_chart" class="container_data_top10">
+
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.8.3/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.1/dist/echarts.js"></script>
+<script type="text/javascript">
+
+    let geoWorld;
+    let worldMapChart;
+    let topDeathChart;
+    let topDeathCountries;
+    let lineCountries;
+    let topInfectChart;
+    let topInfectCountries
+    let lineChart;
+    let lineChartData = []
+
+    let dates; // 所有日期
+    let index = 0; // 日期下标
+    let currentData; // 本次渲染数据
+    let nextData; // 下一波数据（为防止卡顿，要提前将下一批数据预加载进来）
+
+    // 初始化图表
+    function train(world) {
+        geoWorld = world
+        init(); // 初始化一些固定的数据
+        drawMap();
+        drawTopInfect();
+        drawTopDeath();
+        drawLineChart();
+
+        trigger()
+    }
+
+    // 定时刷新图表
+    function trigger() {
+        setInterval(function () {
+            currentData = nextData // 将当前的nextData赋给currentData
+            refreshNext(dates[index++], true) // 同时刷新下一波数据
+            refreshChart() // 刷新图表
+        }, 1000); // 1s刷新一次
+    }
+
+    // 提前获取下一波数据
+    function refreshNext(date, isAsync) {
+        $.ajax({
+            url: '/dashboard/refresh_data',
+            type: 'get',
+            async: isAsync,
+            data: {
+                date: date
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data.code === 0) {
+                    nextData = {data: data.t, date: date}
+                }
+            }
+        });
+    }
+
+    var worldCasesDom = document.getElementById("world_cases");
+    var worldDeathsDom = document.getElementById("world_deaths");
+
+    function refreshChart() { // 刷新图表时无脑用currentData即可
+
+        // 刷新当前日期
+        document.getElementById("logic_date").innerHTML = currentData.date
+        // 刷新当前数据大观
+        incrementNewCases(currentData.data[4].prevNewCases, currentData.data[4].currentNewCases, worldCasesDom)
+        incrementNewDeaths(currentData.data[4].prevNewDeaths, currentData.data[4].currentNewDeaths, worldDeathsDom)
+
+        worldMapChart.setOption({
+            series: [
+                {
+                    data: currentData.data[2]
+                }
+            ]
+        })
+
+        topDeathChart.setOption({
+            series: [
+                {
+                    data: currentData.data[1]
+                }
+            ]
+        })
+
+        topInfectChart.setOption({
+            series: [
+                {
+                    data: currentData.data[0]
+                }
+            ]
+        })
+
+        let newSeriesArray = []
+        for (let i = 0; i < currentData.data[3].length; i++) {
+            lineChartData[i].push(currentData.data[3][i])
+            newSeriesArray.push({
+                data: lineChartData[i]
+            })
+        }
+
+        lineChart.setOption({
+            series: newSeriesArray
+        })
+    }
+
+    var newCasesTask = null;
+
+    async function incrementNewCases(start, end) {
+        let d = end - start
+        worldCasesDom.innerHTML = start;
+        if (newCasesTask != null) {
+            clearInterval(newCasesTask);
+        }
+        if (d > 0) {
+            let dd = d / 500
+            newCasesTask = setInterval(function () {
+                start += dd
+                worldCasesDom.innerHTML = Math.round(start);
+            }, 10)
+        }
+    }
+
+    var newDeathsTask = null;
+
+    async function incrementNewDeaths(start, end) {
+        let d = end - start
+        worldDeathsDom.innerHTML = start;
+        if (newDeathsTask != null) {
+            clearInterval(newDeathsTask);
+        }
+        if (d > 0) {
+            let dd = d / 500
+            newDeathsTask = setInterval(function () {
+                start += dd
+                worldDeathsDom.innerHTML = Math.round(start);
+            }, 10)
+        }
+    }
+
+    function init() {
+        $.ajax({
+            url: '/dashboard/get_countries',
+            type: 'get',
+            async: false,
+            data: {
+                type: 0,
+                language: [[${language}]]
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data.code === 0) {
+                    topInfectCountries = data.t
+                }
+            }
+        });
+
+        $.ajax({
+            url: '/dashboard/get_countries',
+            type: 'get',
+            async: false,
+            data: {
+                type: 1,
+                language: [[${language}]]
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data.code === 0) {
+                    topDeathCountries = data.t
+                }
+            }
+        });
+
+        $.ajax({
+            url: '/dashboard/get_countries',
+            type: 'get',
+            async: false,
+            data: {
+                type: 2,
+                language: [[${language}]]
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data.code === 0) {
+                    lineCountries = data.t
+                }
+            }
+        });
+
+        $.ajax({
+            url: '/dashboard/dates',
+            type: 'get',
+            async: false,
+            data: {
+                type: 1
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data.code === 0) {
+                    dates = data.t
+                }
+            }
+        });
+    }
+
+    function drawMap() {
+
+        // 基于准备好的dom，初始化echarts实例
+        worldMapChart = echarts.init(document.getElementById('world_map_chart'), 'dark');
+        worldMapChart.hideLoading();
+        echarts.registerMap('world', geoWorld);
+        // 指定图表的配置项和数据
+        let option = {
+            backgroundColor: '',
+            visualMap: {
+                show: false,
+                type: 'piecewise',
+                realtime: false,
+                calculable: true,
+                splitNumber: 26,
+                pieces: [
+                    {gte: 60000001, label: '6000w以上'},
+                    {gte: 50000001, lte: 60000000, label: '5000w ~ 6000W'},
+                    {gte: 45000001, lte: 50000000, label: '4500W ~ 5000W'},
+                    {gte: 40000001, lte: 45000000, label: '4000W ~ 4500W'},
+                    {gte: 35000001, lte: 40000000, label: '3500W ~ 4000W'},
+                    {gte: 30000001, lte: 35000000, label: '3000W ~ 3500W'},
+                    {gte: 25000001, lte: 30000000, label: '2500W ~ 3000W'},
+                    {gte: 20000001, lte: 25000000, label: '2000W ~ 2500W'},
+                    {gte: 15000001, lte: 20000000, label: '1500W ~ 2000W'},
+                    {gte: 10000001, lte: 15000000, label: '1000W ~ 1500W'},
+                    {gte: 9000001, lte: 10000000, label: '900W ~ 1000W'},
+                    {gte: 8000001, lte: 9000000, label: '800W ~ 900W'},
+                    {gte: 6500001, lte: 8000000, label: '650W ~ 800W'},
+                    {gte: 5000001, lte: 6500000, label: '500W ~ 650W'},
+                    {gte: 4000001, lte: 5000000, label: '400W ~ 500W'},
+                    {gte: 3000001, lte: 4000000, label: '300W ~ 400W'},
+                    {gte: 1500001, lte: 3000000, label: '150W ~ 300W'},
+                    {gte: 1000001, lte: 1500000, label: '100W ~ 150W'},
+                    {gte: 700001, lte: 1000000, label: '70W ~ 100W'},
+                    {gte: 450001, lte: 700000, label: '45W ~ 70W'},
+                    {gte: 200001, lte: 450000, label: '20W ~ 45W'},
+                    {gte: 100001, lte: 200000, label: '10W ~ 20W'},
+                    {gte: 50001, lte: 100000, label: '5W ~ 10W'},
+                    {gte: 10001, lte: 50000, label: '1W ~ 5W'},
+                    {gte: 1, lte: 10000, label: '1 ~ 1W'},
+                    {lte: 0, label: '0'}          // 不指定 min，表示 min 为无限大（-Infinity）。
+                ],
+                inRange: {
+                    color: ['#ebebeb', '#FFB0B0', '#FF9494', '#FF7878',
+                        '#FF6161', '#FF5050', '#FF3E3E', '#FF2B2B',
+                        '#FF0000', '#E80000', '#D30000', '#BB0000',
+                        '#AA0000', '#970000', '#810000', '#750000',
+                        '#680000', '#5B0000', '#5B0000', '#500000',
+                        '#430000', '#390000', '#300000',
+                        '#240000', '#1A0000', '#0F0000']
+                }
+            },
+            series: [{
+                type: 'map', // 类型
+                zoom: 1.24,
+                // 系列名称，用于tooltip的显示，legend 的图例筛选 在 setOption 更新数据和配置项时用于指定对应的系列
+                map: 'world', // 地图类型
+                roam: true,
+                // 图形上的文本标签
+                label: {
+                    show: false // 是否显示对应地名
+                },
+                data: null,
+                // 地图区域的多边形 图形样式
+                itemStyle: {
+                    borderWidth: 0.25, // 描边线宽 为 0 时无描边
+                    borderColor: '#000', // 图形的描边颜色 支持的颜色格式同 color，不支持回调函数
+                    borderType: 'solid' // 描边类型，默认为实线，支持 'solid', 'dashed', 'dotted'
+                }
+            }]
+        };
+        // 使用刚指定的配置项和数据显示图表。
+        worldMapChart.setOption(option);
+    }
+
+    function drawTopInfect() {
+        // 基于准备好的dom，初始化echarts实例
+        topInfectChart = echarts.init(document.getElementById('top_infect_chart'), 'dark', {width: 430, height: 545});
+        topInfectChart.hideLoading();
+        // 指定图表的配置项和数据
+        let option = {
+            backgroundColor: '',
+            xAxis: {
+                show: false,
+                max: 'dataMax'
+            },
+            yAxis: {
+                axisLabel: {
+                    fontSize: 14
+                },
+                type: 'category',
+                data: topInfectCountries,
+                inverse: true,
+                animationDuration: 4500,
+                animationDurationUpdate: 4500,
+                max: 9 // only the largest 10 bars will be displayed
+            },
+            series: [
+                {
+                    realtimeSort: true,
+                    type: 'bar',
+                    barCategoryGap: '71%',
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                            {offset: 0, color: '#83bff6'},
+                            {offset: 0.5, color: '#188df0'},
+                            {offset: 1, color: '#188df0'}
+                        ])
+                    },
+                    data: null,
+                    label: {
+                        show: true,
+                        position: 'top',
+                        valueAnimation: true,
+                        fontSize: 14
+                    }
+                }
+            ],
+            legend: {
+                show: true
+            },
+            animationDuration: 5000,
+            animationDurationUpdate: 5000,
+            animationEasing: 'linear',
+            animationEasingUpdate: 'linear'
+        };
+        topInfectChart.setOption(option)
+        topInfectChart.resize()
+    }
+
+    function drawTopDeath() {
+        // 基于准备好的dom，初始化echarts实例
+        topDeathChart = echarts.init(document.getElementById('top_death_chart'), 'dark', {width: 430, height: 545});
+        topDeathChart.hideLoading();
+        // 指定图表的配置项和数据
+        let option = {
+            backgroundColor: '',
+            xAxis: {
+                show: false,
+                max: 'dataMax'
+            },
+            yAxis: {
+                axisLabel: {
+                    fontSize: 14
+                },
+                type: 'category',
+                data: topDeathCountries,
+                inverse: true,
+                animationDuration: 4500,
+                animationDurationUpdate: 4500,
+                max: 9 // only the largest 10 bars will be displayed
+            },
+            series: [
+                {
+                    realtimeSort: true,
+                    type: 'bar',
+                    barCategoryGap: '71%',
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                            {offset: 0, color: '#83bff6'},
+                            {offset: 0.5, color: '#188df0'},
+                            {offset: 1, color: '#188df0'}
+                        ])
+                    },
+                    data: null,
+                    label: {
+                        show: true,
+                        position: 'top',
+                        valueAnimation: true,
+                        fontSize: 14
+                    }
+                }
+            ],
+            legend: {
+                show: true
+            },
+            animationDuration: 5000,
+            animationDurationUpdate: 5000,
+            animationEasing: 'linear',
+            animationEasingUpdate: 'linear'
+        };
+        topDeathChart.setOption(option)
+        topDeathChart.resize()
+    }
+
+    var lineColors = ['#FFC312', '#C4E538', '#B53471', '#12CBC4', '#FDA7DF',
+        '#0652DD', '#ED4C67', '#1289A7', '#F79F1F', '#A3CB38',
+        '#D980FA', '#EE5A24', '#009432', '#9980FA', '#fffa65']
+
+    function drawLineChart() {
+        let seriesArray = []
+        let colorIndex = 0
+        lineCountries.forEach(lc => {
+            lineChartData.push([])
+            let lineStyle = {
+                width: 2
+            }
+            lineStyle.color = lineColors[colorIndex]
+            seriesArray.push({
+                type: 'line',
+                showSymbol: false,
+                data: null,
+                lineStyle: lineStyle,
+                endLabel: {
+                    show: true,
+                    fontSize: 15,
+                    formatter: function (params) {
+                        return lc + "：" + params.value[1];
+                    }
+                }
+            })
+            colorIndex++
+        })
+
+        let option = {
+            backgroundColor: '',
+            xAxis: {
+                type: "time",
+                splitLine: {
+                    show: false
+                },
+                axisLabel: {
+                    fontSize: 15
+                }
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: {
+                    show: false
+                },
+                axisLabel: {
+                    fontSize: 15
+                }
+            },
+            series: seriesArray
+        };
+
+        lineChart = echarts.init(document.getElementById('line_chart'), 'dark');
+        lineChart.hideLoading();
+
+        lineChart.setOption(option)
+    }
+
+</script>
+<script src="/json/world.json?cb=train"></script>
+</body>
+</html>

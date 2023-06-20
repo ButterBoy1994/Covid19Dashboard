@@ -10,3 +10,10 @@ spring:
     encoding: UTF-8
     servlet:
       content-type: text/html
+
+mysql:
+  worlds:
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/worlds?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&autoReconnect=true&zeroDateTimeBehavior=convertToNull
+    username: root
+    password: 123456
+    minIdle: 1

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="demo.covid19.dashboard.mapper.Covid19DataMapper">
+
+    <select id="getDataByDate" resultType="demo.covid19.dashboard.model.Covid19Data">
+        SELECT tcd.`id`,
+               tcd.`country_id`                            AS countryId,
+               tcc.name                                    AS countryName,
+               tcd.`new_cases`                             AS newCases,
+               tcd.`cumulative_cases`                      AS cumulativeCases,
+               tcd.`new_deaths`                            AS newDeaths,
+               tcd.`cumulative_deaths`                     AS cumulativeDeaths,
+               (tcd.`cumulative_cases` / tcc.`population`) AS cumulativeRate,
+               tcd.`date`,
+               tcd.`state`,
+               tcd.`ctime`,
+               tcd.`mtime`
+        FROM t_covid19_data tcd
+                 LEFT JOIN t_covid19_country tcc ON tcc.id = tcd.country_id
+        WHERE tcd.`date` = #{date}
+          AND tcd.`state` = 0
+    </select>
+
+    <select id="getNewCaseLine" resultType="demo.covid19.dashboard.model.Covid19Data">
+        SELECT tcc.name_cn          AS countryCnName,
+               SUM(tcd.`new_cases`) AS newCases,
+               tcc.`id`             AS countryId
+        FROM t_covid19_data tcd
+                 LEFT JOIN t_covid19_country tcc ON tcc.id = tcd.country_id
+        WHERE tcd.`date` LIKE #{time}
+          AND tcd.`state` = 0
+          AND tcd.`country_id` IN (228, 74, 213, 80, 44, 107, 173, 98, 30, 177, 105, 208, 234, 202, 100)
+        GROUP BY tcd.`country_id`
+    </select>
+
+    <select id="getCumulativeCases" resultType="java.lang.Long">
+        SELECT cumulative_cases
+        FROM t_covid19_data
+        WHERE `state` = 0
+          AND `date` = #{date}
+          AND country_id IN
+              (2, 3, 195, 4, 5, 6, 7, 8, 136, 9, 73, 10, 74, 202, 11, 204, 13, 205, 80, 209, 147, 212, 213, 21, 220,
+               157, 30, 160, 226, 98, 228, 100, 166, 105, 107, 43, 44, 173, 45, 238, 177, 114, 127)
+        ORDER BY country_id ASC
+    </select>
+
+    <select id="getCumulativeDeaths" resultType="java.lang.Long">
+        SELECT cumulative_deaths
+        FROM t_covid19_data
+        WHERE `state` = 0
+          AND `date` = #{date}
+          AND country_id IN
+              (2, 3, 4, 5, 6, 7, 8, 136, 9, 10, 74, 11, 204, 13, 80, 148, 213, 21, 30, 160, 98, 99, 100, 228, 166, 167,
+               105, 107, 44, 173, 45, 238, 177)
+        ORDER BY country_id ASC
+    </select>
+
+    <select id="getNewCaseTotal" resultType="java.lang.Long">
+        SELECT SUM(`cumulative_cases`)
+        FROM t_covid19_data
+        WHERE `date` = #{date}
+          AND `state` = 0
+    </select>
+
+    <select id="getNewDeathTotal" resultType="java.lang.Long">
+        SELECT SUM(`cumulative_deaths`)
+        FROM t_covid19_data
+        WHERE `date` = #{date}
+          AND `state` = 0
+    </select>
+
+
+</mapper>

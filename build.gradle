@@ -1,3 +1,9 @@
+rootProject.pluginManager.withPlugin('java', {
+    rootProject.sourceSets.main.resources {
+        srcDirs 'src/main/resources', 'src/main/java'
+    }
+})
+
 buildscript {
     repositories {
         mavenCentral()
@@ -18,7 +24,6 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-
     implementation 'org.springframework:spring-context-support'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
@@ -30,6 +35,8 @@ dependencies {
     implementation 'com.google.guava:guava:24.0-jre'
     implementation 'com.zaxxer:HikariCP:3.3.1'
     implementation 'mysql:mysql-connector-java:8.0.17'
+    compileOnly 'org.projectlombok:lombok:1.18.4'
+    annotationProcessor 'org.projectlombok:lombok:1.18.4'
 }
 
 bootJar {
